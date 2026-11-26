@@ -1,0 +1,22 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "node ./scripts/src/preinstall.mjs",
+    "dev": "pnpm --parallel --filter @workspace/api-server --filter @workspace/pharmacy-erp run dev",
+    "start": "pnpm --filter @workspace/api-server start",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "test": "pnpm --filter @workspace/api-server test",
+    "typecheck:libs": "tsc --build --force",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+  },
+  "private": true,
+  "dependencies": {
+    "@replit/connectors-sdk": "^0.4.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Pharmacy ERP"
+description = "A complete pharmacy operations dashboard for managing products, categories, orders, sales, customers, payments, reports, and settings with interactive CRUD workflows."
+version = "1.0.0"
+id = "artifacts/pharmacy-erp"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19126
+
+[services.development]
+run = "pnpm --filter @workspace/pharmacy-erp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pharmacy-erp", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pharmacy-erp/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19126"
+BASE_PATH = "/"

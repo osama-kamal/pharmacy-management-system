@@ -1,0 +1,10 @@
+{
+  "name": "Pharmacy OS — Smart Pharmacy Management",
+  "short_name": "Pharmacy OS",
+  "description": "A secure, responsive pharmacy operations platform for inventory, sales, orders, customers, payments and reports.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef9f7",
+  "theme_color": "#073f42",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

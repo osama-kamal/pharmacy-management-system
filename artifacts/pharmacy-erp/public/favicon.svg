@@ -1,0 +1,16 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="surface" x1="24" y1="18" x2="158" y2="166" gradientUnits="userSpaceOnUse"><stop stop-color="#0B5555"/><stop offset="1" stop-color="#032F32"/></linearGradient>
+    <linearGradient id="accent" x1="52" y1="39" x2="131" y2="137" gradientUnits="userSpaceOnUse"><stop stop-color="#A7F3DB"/><stop offset="1" stop-color="#55D2C2"/></linearGradient>
+    <filter id="shadow" x="18" y="22" width="144" height="148" filterUnits="userSpaceOnUse"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#001D20" flood-opacity="0.3"/></filter>
+  </defs>
+  <rect x="5" y="5" width="170" height="170" rx="46" fill="url(#surface)"/>
+  <rect x="7.5" y="7.5" width="165" height="165" rx="43.5" stroke="#A7F3DB" stroke-opacity="0.28" stroke-width="5"/>
+  <g filter="url(#shadow)">
+    <circle cx="90" cy="88" r="52" fill="#F5FFFC"/>
+    <path d="M82 54C82 49.582 85.582 46 90 46C94.418 46 98 49.582 98 54V75H119C123.418 75 127 78.582 127 83C127 87.418 123.418 91 119 91H98V112C98 116.418 94.418 120 90 120C85.582 120 82 116.418 82 112V91H61C56.582 91 53 87.418 53 83C53 78.582 56.582 75 61 75H82V54Z" fill="url(#accent)"/>
+    <path d="M105.5 116.5L122.5 99.5C128.575 93.425 138.425 93.425 144.5 99.5C150.575 105.575 150.575 115.425 144.5 121.5L127.5 138.5C121.425 144.575 111.575 144.575 105.5 138.5C99.425 132.425 99.425 122.575 105.5 116.5Z" fill="#0B5555" stroke="#F5FFFC" stroke-width="5"/>
+    <path d="M116.5 105.5L138.5 127.5" stroke="#F5FFFC" stroke-width="5"/>
+    <path d="M105.5 127.5L127.5 105.5L138.5 116.5L116.5 138.5L105.5 127.5Z" fill="#F0B7BC"/>
+  </g>
+</svg>

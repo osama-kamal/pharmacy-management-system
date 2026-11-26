@@ -1,0 +1,8 @@
+node_modules
+**/dist
+.git
+.env
+*.log
+artifacts/api-server/data/*.sqlite3*
+artifacts/api-server/data/backups
+coverage

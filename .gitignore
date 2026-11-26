@@ -1,0 +1,13 @@
+node_modules/
+**/dist/
+*.log
+.env
+.env.*
+!.env.example
+artifacts/api-server/data/
+coverage/
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+**/*.tsbuildinfo
+_create_repo.ps1

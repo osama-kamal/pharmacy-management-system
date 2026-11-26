@@ -1,0 +1,1046 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Pharmacy ERP API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: dashboard
+  - name: products
+  - name: categories
+  - name: orders
+  - name: sales
+  - name: customers
+  - name: payments
+  - name: reports
+  - name: settings
+  - name: auth
+  - name: users
+  - name: suppliers
+  - name: purchases
+  - name: inventory
+  - name: pos
+  - name: returns
+  - name: administration
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Dashboard overview
+      responses:
+        "200":
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List products
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+  /products/{id}:
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update product
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete product
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List categories
+      responses:
+        "200":
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+  /categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update category
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete category
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List orders
+      responses:
+        "200":
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+  /orders/{id}:
+    patch:
+      operationId: updateOrder
+      tags: [orders]
+      summary: Update order
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderUpdate"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+    delete:
+      operationId: deleteOrder
+      tags: [orders]
+      summary: Delete order
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /sales:
+    get:
+      operationId: listSales
+      tags: [sales]
+      summary: List sales
+      responses:
+        "200":
+          description: Sales list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+    post:
+      operationId: createSale
+      tags: [sales]
+      summary: Create sale
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleInput"
+      responses:
+        "201":
+          description: Created sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+  /sales/{id}:
+    patch:
+      operationId: updateSale
+      tags: [sales]
+      summary: Update sale
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleUpdate"
+      responses:
+        "200":
+          description: Updated sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+    delete:
+      operationId: deleteSale
+      tags: [sales]
+      summary: Delete sale
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List customers
+      responses:
+        "200":
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+  /customers/{id}:
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update customer
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete customer
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payments
+      responses:
+        "200":
+          description: Payment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+  /reports/summary:
+    get:
+      operationId: getReportsSummary
+      tags: [reports]
+      summary: Reporting summary
+      responses:
+        "200":
+          description: Reporting summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportsSummary"
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get pharmacy settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update pharmacy settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in and create a persistent secure session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Signed in
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Too many attempts
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current signed-in user
+      responses:
+        "200":
+          description: Current user or null
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Signed out
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change the current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 8 }
+      responses:
+        "204":
+          description: Password changed
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List team accounts
+      responses:
+        "200":
+          description: Team accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AppUser" }
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a team account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+                role: { type: string }
+      responses:
+        "201":
+          description: Account created
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a team account
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Account updated
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a team account
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Account deleted
+  /suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      summary: List suppliers
+      responses:
+        "200":
+          description: Suppliers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Supplier" }
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      summary: Create supplier
+      responses:
+        "201":
+          description: Supplier created
+  /suppliers/{id}:
+    patch:
+      operationId: updateSupplier
+      tags: [suppliers]
+      summary: Update supplier
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Supplier updated
+    delete:
+      operationId: deleteSupplier
+      tags: [suppliers]
+      summary: Delete supplier
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Supplier deleted
+  /purchases:
+    get:
+      operationId: listPurchases
+      tags: [purchases]
+      summary: List purchase orders
+      responses:
+        "200":
+          description: Purchase orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Purchase" }
+    post:
+      operationId: createPurchase
+      tags: [purchases]
+      summary: Create purchase order
+      responses:
+        "201":
+          description: Purchase created
+  /purchases/{id}/receive:
+    patch:
+      operationId: receivePurchase
+      tags: [purchases]
+      summary: Receive a purchase and update stock
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Purchase received
+  /inventory/movements:
+    get:
+      operationId: listInventoryMovements
+      tags: [inventory]
+      summary: List immutable stock movements
+      responses:
+        "200":
+          description: Stock ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InventoryMovement" }
+  /inventory/adjustments:
+    post:
+      operationId: createInventoryAdjustment
+      tags: [inventory]
+      summary: Adjust stock with a reason
+      responses:
+        "200":
+          description: Updated product
+  /pos/checkout:
+    post:
+      operationId: checkout
+      tags: [pos]
+      summary: Atomically complete a multi-item sale
+      responses:
+        "201":
+          description: Printable receipt
+  /returns:
+    get:
+      operationId: listReturns
+      tags: [returns]
+      summary: List completed returns
+      responses:
+        "200":
+          description: Returns
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ReturnRecord" }
+    post:
+      operationId: createReturn
+      tags: [returns]
+      summary: Return sold stock and record a refund
+      responses:
+        "201":
+          description: Return completed
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [inventory]
+      summary: List live low-stock and expiry alerts
+      responses:
+        "200":
+          description: Active alerts
+  /integrations/eptts/products.csv:
+    get:
+      operationId: exportEpttsProducts
+      tags: [inventory]
+      summary: Export authorized GTIN, batch, expiry and stock traceability data
+      responses:
+        "200":
+          description: EPTTS/GS1-ready product CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        "403":
+          description: Role is not allowed to export traceability data
+  /audit-log:
+    get:
+      operationId: listAuditEvents
+      tags: [administration]
+      summary: List security and operational audit events
+      responses:
+        "200":
+          description: Audit trail
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEvent" }
+  /backup/export:
+    get:
+      operationId: exportBackup
+      tags: [administration]
+      summary: Export a complete operational backup
+      responses:
+        "200":
+          description: Backup document
+  /backup/restore:
+    post:
+      operationId: restoreBackup
+      tags: [administration]
+      summary: Restore a validated backup after explicit confirmation
+      responses:
+        "200":
+          description: Backup restored
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+    AppUser:
+      type: object
+      required: [id, name, email, role, status, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+    Supplier:
+      type: object
+      required: [id, name, email, phone, address, status, balance, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        status: { type: string }
+        balance: { type: number }
+        createdAt: { type: string, format: date-time }
+    Purchase:
+      type: object
+      required: [id, reference, supplierId, supplier, items, subtotal, status, createdAt]
+      properties:
+        id: { type: integer }
+        reference: { type: string }
+        supplierId: { type: integer }
+        supplier: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        subtotal: { type: number }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        receivedAt: { type: string, format: date-time }
+    InventoryMovement:
+      type: object
+      required: [id, productId, product, type, quantity, balanceAfter, reference, createdAt]
+      properties:
+        id: { type: integer }
+        productId: { type: integer }
+        product: { type: string }
+        type: { type: string }
+        quantity: { type: integer }
+        balanceAfter: { type: integer }
+        reference: { type: string }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+    ReturnRecord:
+      type: object
+      required: [id, saleId, productId, product, customer, quantity, amount, reason, status, createdAt]
+      properties:
+        id: { type: integer }
+        saleId: { type: integer }
+        productId: { type: integer }
+        product: { type: string }
+        customer: { type: string }
+        quantity: { type: integer }
+        amount: { type: number }
+        reason: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+    AuditEvent:
+      type: object
+      required: [id, action, entity, actor, createdAt]
+      properties:
+        id: { type: integer }
+        action: { type: string }
+        entity: { type: string }
+        entityId: { type: string }
+        actor: { type: string }
+        details: { type: string }
+        createdAt: { type: string, format: date-time }
+    Product:
+      type: object
+      required: [id, name, category, sku, stock, price, expiry, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category: { type: string }
+        sku: { type: string }
+        stock: { type: integer }
+        price: { type: number }
+        expiry: { type: string }
+        status: { type: string }
+        supplier: { type: string }
+        description: { type: string }
+        cost: { type: number, minimum: 0 }
+        barcode: { type: string }
+        batchNumber: { type: string }
+        reorderLevel: { type: integer, minimum: 0 }
+        unit: { type: string }
+    ProductInput:
+      type: object
+      required: [name, category, sku, stock, price, expiry]
+      properties:
+        name: { type: string }
+        category: { type: string }
+        sku: { type: string }
+        stock: { type: integer }
+        price: { type: number }
+        expiry: { type: string }
+        status: { type: string }
+        supplier: { type: string }
+        description: { type: string }
+        cost: { type: number, minimum: 0 }
+        barcode: { type: string }
+        batchNumber: { type: string }
+        reorderLevel: { type: integer, minimum: 0 }
+        unit: { type: string }
+    ProductUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        category: { type: string }
+        sku: { type: string }
+        stock: { type: integer }
+        price: { type: number }
+        expiry: { type: string }
+        status: { type: string }
+        supplier: { type: string }
+        description: { type: string }
+        cost: { type: number, minimum: 0 }
+        barcode: { type: string }
+        batchNumber: { type: string }
+        reorderLevel: { type: integer, minimum: 0 }
+        unit: { type: string }
+    Category:
+      type: object
+      required: [id, name, productCount, sales, color]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        productCount: { type: integer }
+        sales: { type: number }
+        color: { type: string }
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        color: { type: string }
+    CategoryUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        color: { type: string }
+    Order:
+      type: object
+      required: [id, customer, product, paymentMethod, quantity, total, status, date]
+      properties:
+        id: { type: integer }
+        customer: { type: string }
+        product: { type: string }
+        paymentMethod: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        status: { type: string }
+        date: { type: string }
+    OrderInput:
+      type: object
+      required: [customer, product, paymentMethod, quantity, total]
+      properties:
+        customer: { type: string }
+        product: { type: string }
+        paymentMethod: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        status: { type: string }
+    OrderUpdate:
+      type: object
+      properties:
+        customer: { type: string }
+        product: { type: string }
+        paymentMethod: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        status: { type: string }
+    Sale:
+      type: object
+      required: [id, customer, product, category, quantity, total, date]
+      properties:
+        id: { type: integer }
+        customer: { type: string }
+        product: { type: string }
+        category: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        date: { type: string }
+    SaleInput:
+      type: object
+      required: [customer, product, category, quantity, total]
+      properties:
+        customer: { type: string }
+        product: { type: string }
+        category: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        date: { type: string }
+    SaleUpdate:
+      type: object
+      properties:
+        customer: { type: string }
+        product: { type: string }
+        category: { type: string }
+        quantity: { type: integer }
+        total: { type: number }
+        date: { type: string }
+    Customer:
+      type: object
+      required: [id, name, email, phone, orders, spent, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        orders: { type: integer }
+        spent: { type: number }
+        status: { type: string }
+        allergies: { type: string }
+        conditions: { type: string }
+        notes: { type: string }
+        prescriptions: { type: string }
+        loyaltyPoints: { type: number }
+        consent: { type: boolean }
+    CustomerInput:
+      type: object
+      required: [name, email, phone]
+      properties:
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        status: { type: string }
+        allergies: { type: string }
+        conditions: { type: string }
+        notes: { type: string }
+        prescriptions: { type: string }
+        loyaltyPoints: { type: number }
+        consent: { type: boolean }
+    CustomerUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        status: { type: string }
+        allergies: { type: string }
+        conditions: { type: string }
+        notes: { type: string }
+        prescriptions: { type: string }
+        loyaltyPoints: { type: number }
+        consent: { type: boolean }
+    Payment:
+      type: object
+      required: [id, customer, amount, method, status, date, reference]
+      properties:
+        id: { type: integer }
+        customer: { type: string }
+        amount: { type: number }
+        method: { type: string }
+        status: { type: string }
+        date: { type: string }
+        reference: { type: string }
+    PaymentInput:
+      type: object
+      required: [customer, amount, method]
+      properties:
+        customer: { type: string }
+        amount: { type: number }
+        method: { type: string }
+        status: { type: string }
+    Dashboard:
+      type: object
+      required: [sales, categories, expired, users, totalSales, weeklySales]
+      properties:
+        sales: { type: number }
+        categories: { type: integer }
+        expired: { type: integer }
+        users: { type: integer }
+        totalSales: { type: number }
+        weeklySales:
+          type: array
+          items:
+            type: object
+            required: [label, value]
+            properties:
+              label: { type: string }
+              value: { type: number }
+    ReportsSummary:
+      type: object
+      required: [revenue, orders, averageOrder, byCategory]
+      properties:
+        revenue: { type: number }
+        orders: { type: integer }
+        averageOrder: { type: number }
+        byCategory:
+          type: array
+          items:
+            type: object
+            required: [label, value]
+            properties:
+              label: { type: string }
+              value: { type: number }
+    Settings:
+      type: object
+      required: [pharmacyName, email, phone, address, currency, notifications, taxRate, lowStockThreshold, receiptFooter]
+      properties:
+        pharmacyName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        currency: { type: string }
+        notifications: { type: boolean }
+        taxRate: { type: number, minimum: 0 }
+        lowStockThreshold: { type: integer, minimum: 0 }
+        receiptFooter: { type: string }
+    SettingsUpdate:
+      type: object
+      properties:
+        pharmacyName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        currency: { type: string }
+        notifications: { type: boolean }
+        taxRate: { type: number, minimum: 0 }
+        lowStockThreshold: { type: integer, minimum: 0 }
+        receiptFooter: { type: string }
