@@ -67,20 +67,24 @@ function verifyPassword(password: string, passwordHash: string) {
   return supplied.length === stored.length && timingSafeEqual(supplied, stored);
 }
 
-const usersStore = createPersistentJson<AppUser[]>("users.json", []);
-if (!usersStore.data.length) {
-  usersStore.save([
-    {
-      id: 1,
-      name: profileStore.data.name,
-      email: adminEmail.toLowerCase(),
-      passwordHash: hashPassword(adminPassword),
-      role: "Owner",
-      status: "Active",
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+if (process.env["TURSO_DATABASE_URL"] && !process.env["ADMIN_PASSWORD"]) {
+  throw new Error(
+    "ADMIN_PASSWORD must be set when a hosted database is configured.",
+  );
 }
+
+// Used only when the database has no users yet (first start).
+const usersStore = createPersistentJson<AppUser[]>("users.json", [
+  {
+    id: 1,
+    name: profileStore.data.name,
+    email: adminEmail.toLowerCase(),
+    passwordHash: hashPassword(adminPassword),
+    role: "Owner",
+    status: "Active",
+    createdAt: new Date().toISOString(),
+  },
+]);
 
 const publicProfile = (user: AppUser): UserProfile => ({
   ...profileStore.data,

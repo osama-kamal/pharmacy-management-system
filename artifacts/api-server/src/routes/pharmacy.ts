@@ -516,7 +516,51 @@ const seedDemoData =
   process.env["SEED_DEMO_DATA"] === "true" ||
   process.env.NODE_ENV !== "production";
 
-const dataStore = createPersistentJson<PharmacyData>("pharmacy-data.json", {
+// Copies a loaded document into the arrays the route handlers work on. It runs
+// at the start of every request, after the latest data was read from storage.
+function loadPharmacyData(data: PharmacyData) {
+  products.splice(0, products.length, ...data.products);
+  categories.splice(0, categories.length, ...data.categories);
+  orders.splice(0, orders.length, ...data.orders);
+  sales.splice(0, sales.length, ...data.sales);
+  customers.splice(0, customers.length, ...data.customers);
+  payments.splice(0, payments.length, ...data.payments);
+  settings = {
+    taxRate: 0,
+    lowStockThreshold: 10,
+    receiptFooter: "Thank you for choosing our pharmacy.",
+    ...data.settings,
+  };
+  supportTickets.splice(0, supportTickets.length, ...(data.supportTickets ?? []));
+  suppliers.splice(
+    0,
+    suppliers.length,
+    ...(data.suppliers ??
+      [...new Set(products.map((product) => product.supplier).filter(Boolean))]
+        .map((name, index) => ({
+          id: index + 1,
+          name: name!,
+          email: "",
+          phone: "",
+          address: "",
+          status: "Active" as const,
+          balance: 0,
+          createdAt: new Date().toISOString(),
+        }))),
+  );
+  purchases.splice(0, purchases.length, ...(data.purchases ?? []));
+  inventoryMovements.splice(
+    0,
+    inventoryMovements.length,
+    ...(data.inventoryMovements ?? []),
+  );
+  returns.splice(0, returns.length, ...(data.returns ?? []));
+  auditEvents.splice(0, auditEvents.length, ...(data.auditEvents ?? []));
+}
+
+const dataStore = createPersistentJson<PharmacyData>(
+  "pharmacy-data.json",
+  {
   products: seedDemoData ? products : [],
   categories: seedDemoData ? categories : [],
   orders: seedDemoData ? orders : [],
@@ -530,45 +574,9 @@ const dataStore = createPersistentJson<PharmacyData>("pharmacy-data.json", {
   inventoryMovements,
   returns,
   auditEvents,
-});
-
-products.splice(0, products.length, ...dataStore.data.products);
-categories.splice(0, categories.length, ...dataStore.data.categories);
-orders.splice(0, orders.length, ...dataStore.data.orders);
-sales.splice(0, sales.length, ...dataStore.data.sales);
-customers.splice(0, customers.length, ...dataStore.data.customers);
-payments.splice(0, payments.length, ...dataStore.data.payments);
-settings = {
-  taxRate: 0,
-  lowStockThreshold: 10,
-  receiptFooter: "Thank you for choosing our pharmacy.",
-  ...dataStore.data.settings,
-};
-supportTickets.splice(0, supportTickets.length, ...(dataStore.data.supportTickets ?? []));
-suppliers.splice(
-  0,
-  suppliers.length,
-  ...(dataStore.data.suppliers ??
-    [...new Set(products.map((product) => product.supplier).filter(Boolean))]
-      .map((name, index) => ({
-        id: index + 1,
-        name: name!,
-        email: "",
-        phone: "",
-        address: "",
-        status: "Active" as const,
-        balance: 0,
-        createdAt: new Date().toISOString(),
-      }))),
+},
+  loadPharmacyData,
 );
-purchases.splice(0, purchases.length, ...(dataStore.data.purchases ?? []));
-inventoryMovements.splice(
-  0,
-  inventoryMovements.length,
-  ...(dataStore.data.inventoryMovements ?? []),
-);
-returns.splice(0, returns.length, ...(dataStore.data.returns ?? []));
-auditEvents.splice(0, auditEvents.length, ...(dataStore.data.auditEvents ?? []));
 
 const persistData = () =>
   dataStore.save({

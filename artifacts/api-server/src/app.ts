@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
+import { transactional } from "./lib/transaction";
 import { logger } from "./lib/logger";
 import cookieParser from "cookie-parser";
 
@@ -69,7 +70,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
 
-app.use("/api", router);
+app.use("/api", transactional(router));
 
 if (process.env.NODE_ENV === "production") {
   const publicDirectory = resolve(

@@ -1,117 +1,136 @@
-import Database from "better-sqlite3";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  createBackendFromEnvironment,
+  type CommitResult,
+  type StorageBackend,
+} from "./storage";
 
-type StoredDocument = {
-  value: string;
+/**
+ * Named JSON documents shared through a storage backend.
+ *
+ * A store is a plain in-memory value for the request that is running. The
+ * transaction middleware (see transaction.ts) loads every document at the start
+ * of a request and commits the changed ones before the response is sent, so the
+ * database stays the single source of truth across processes and instances.
+ */
+type StoreInternal = {
+  name: string;
+  defaultsJson: string;
+  data: unknown;
+  version: number;
+  dirty: boolean;
+  onLoad?: (data: any) => void;
 };
 
-let database: Database.Database | undefined;
-let databasePath: string | undefined;
+const stores = new Map<string, StoreInternal>();
 
-function findApiServerDirectory() {
-  let current = dirname(fileURLToPath(import.meta.url));
-
-  for (let depth = 0; depth < 5; depth += 1) {
-    const packagePath = resolve(current, "package.json");
-    if (existsSync(packagePath)) {
-      try {
-        const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as {
-          name?: string;
-        };
-        if (packageJson.name === "@workspace/api-server") return current;
-      } catch {
-        // Keep walking: this may be a package.json for another workspace package.
-      }
-    }
-    current = resolve(current, "..");
-  }
-
-  const workspaceArtifact = resolve(process.cwd(), "artifacts", "api-server");
-  return existsSync(resolve(workspaceArtifact, "package.json"))
-    ? workspaceArtifact
-    : process.cwd();
-}
-
-function getDataDirectory() {
-  const configuredPath = process.env["PHARMACY_DATA_DIR"];
-  return configuredPath
-    ? resolve(configuredPath)
-    : resolve(findApiServerDirectory(), "data");
-}
-
-function getDatabase() {
-  if (database) return database;
-
-  const dataDir = getDataDirectory();
-  mkdirSync(dataDir, { recursive: true });
-  databasePath = resolve(dataDir, "pharmacy.sqlite3");
-  database = new Database(databasePath);
-  database.pragma("journal_mode = WAL");
-  database.pragma("synchronous = FULL");
-  database.pragma("foreign_keys = ON");
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS app_documents (
-      document_key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-  return database;
-}
-
-function saveDocument<T>(key: string, value: T) {
-  getDatabase()
-    .prepare(
-      `INSERT INTO app_documents (document_key, value, updated_at)
-       VALUES (?, ?, ?)
-       ON CONFLICT(document_key) DO UPDATE SET
-         value = excluded.value,
-         updated_at = excluded.updated_at`,
-    )
-    .run(key, JSON.stringify(value), new Date().toISOString());
-}
-
-export function createPersistentJson<T>(fileName: string, defaults: T) {
-  const db = getDatabase();
-  const stored = db
-    .prepare("SELECT value FROM app_documents WHERE document_key = ?")
-    .get(fileName) as StoredDocument | undefined;
-
-  let data: T;
-  if (stored) {
-    try {
-      data = JSON.parse(stored.value) as T;
-    } catch (error) {
-      throw new Error(`Could not read ${fileName} from ${databasePath}`, {
-        cause: error,
-      });
-    }
-  } else {
-    const legacyFilePath = resolve(getDataDirectory(), fileName);
-    if (existsSync(legacyFilePath)) {
-      try {
-        data = JSON.parse(readFileSync(legacyFilePath, "utf8")) as T;
-      } catch (error) {
-        throw new Error(`Could not migrate persistent data: ${legacyFilePath}`, {
-          cause: error,
-        });
-      }
-    } else {
-      data = structuredClone(defaults);
-    }
-    saveDocument(fileName, data);
-  }
+export function createPersistentJson<T>(
+  name: string,
+  defaults: T,
+  onLoad?: (data: T) => void,
+) {
+  if (stores.has(name)) throw new Error(`Duplicate persistent store: ${name}`);
+  const internal: StoreInternal = {
+    name,
+    defaultsJson: JSON.stringify(defaults),
+    data: structuredClone(defaults),
+    version: 0,
+    dirty: false,
+    onLoad,
+  };
+  stores.set(name, internal);
+  onLoad?.(internal.data as T);
 
   return {
     get data() {
-      return data;
+      return internal.data as T;
     },
     save(next: T) {
-      data = structuredClone(next);
-      saveDocument(fileName, data);
+      internal.data = structuredClone(next);
+      internal.dirty = true;
     },
-    filePath: databasePath,
+    get filePath() {
+      return persistence.description;
+    },
   };
 }
+
+class Persistence {
+  private backend: StorageBackend | undefined;
+  private ensuring: Promise<void> | undefined;
+
+  get description() {
+    return this.backend?.description ?? "uninitialised";
+  }
+
+  private getBackend() {
+    this.backend ??= createBackendFromEnvironment();
+    return this.backend;
+  }
+
+  /** Replace the backend (used by tests). */
+  async useBackend(backend: StorageBackend) {
+    await this.close();
+    this.backend = backend;
+  }
+
+  async close() {
+    this.ensuring = undefined;
+    await this.backend?.close?.();
+    this.backend = undefined;
+  }
+
+  private ensure() {
+    this.ensuring ??= this.getBackend()
+      .ensure(
+        [...stores.values()].map((store) => ({
+          key: store.name,
+          value: store.defaultsJson,
+        })),
+      )
+      .catch((error) => {
+        this.ensuring = undefined;
+        throw error;
+      });
+    return this.ensuring;
+  }
+
+  /** Load the latest committed value of every document into memory. */
+  async hydrate() {
+    await this.ensure();
+    const rows = await this.getBackend().loadAll();
+    const byKey = new Map(rows.map((row) => [row.key, row]));
+    for (const store of stores.values()) {
+      const row = byKey.get(store.name);
+      if (!row) throw new Error(`Stored document is missing: ${store.name}`);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(row.value);
+      } catch (error) {
+        throw new Error(`Could not read ${store.name}`, { cause: error });
+      }
+      store.data = parsed;
+      store.version = row.version;
+      store.dirty = false;
+      store.onLoad?.(parsed);
+    }
+  }
+
+  hasChanges() {
+    return [...stores.values()].some((store) => store.dirty);
+  }
+
+  /** Write every changed document in one all-or-nothing transaction. */
+  async commit(): Promise<CommitResult> {
+    const changed = [...stores.values()].filter((store) => store.dirty);
+    if (!changed.length) return { ok: true };
+    return this.getBackend().commit(
+      changed.map((store) => ({
+        key: store.name,
+        value: JSON.stringify(store.data),
+        expectedVersion: store.version,
+      })),
+    );
+  }
+}
+
+export const persistence = new Persistence();
