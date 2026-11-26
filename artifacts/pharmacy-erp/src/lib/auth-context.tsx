@@ -20,6 +20,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  startDemo: () => Promise<void>;
   updateUser: (user: UserProfile) => void;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -60,13 +61,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!response.ok) throw new Error(data.error ?? "Could not sign in");
     setUser(data.user);
   };
+  const startDemo = async () => {
+    const started = await fetch("/api/demo/start", { method: "POST" });
+    if (!started.ok) {
+      const data = await started.json().catch(() => ({}));
+      throw new Error(data.error ?? "The demo could not be started");
+    }
+    const me = await fetch("/api/auth/me").then((response) => response.json());
+    if (!me.user) throw new Error("The demo could not be started");
+    setUser(me.user);
+  };
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
   };
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, updateUser: setUser }}
+      value={{ user, loading, login, logout, startDemo, updateUser: setUser }}
     >
       {children}
     </AuthContext.Provider>

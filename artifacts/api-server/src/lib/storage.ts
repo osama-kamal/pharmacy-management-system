@@ -9,7 +9,26 @@ import { resolve } from "node:path";
  * every document is still at the version the request loaded. Otherwise nothing
  * is written and the caller gets a conflict.
  */
-export type StoredRow = { key: string; value: string; version: number };
+export type StoredRow = {
+  key: string;
+  value: string;
+  version: number;
+  updatedAt?: string;
+};
+export type SandboxSpec = {
+  id: string;
+  docs: { key: string; value: string }[];
+  metaKey: string;
+  maxSandboxes: number;
+  ttlMs: number;
+  throttleMax: number;
+  throttleWindowMs: number;
+};
+export type SandboxResult =
+  | { ok: true }
+  | { ok: false; reason: "full" | "throttled" };
+const THROTTLE_KEY = "demo-throttle";
+const SANDBOX_ID = /^[a-f0-9]{32}$/;
 export type DocumentChange = {
   key: string;
   value: string;
@@ -21,7 +40,14 @@ export interface StorageBackend {
   readonly description: string;
   /** Create the schema and insert missing documents (never overwrites). */
   ensure(defaults: { key: string; value: string }[]): Promise<void>;
-  loadAll(): Promise<StoredRow[]>;
+  /** Load exactly these documents. Missing keys are simply absent. */
+  loadKeys(keys: string[]): Promise<StoredRow[]>;
+  /**
+   * Atomically (one database transaction, so also across instances): delete
+   * expired sandboxes, enforce the global creation throttle and the sandbox
+   * cap, then insert the new sandbox documents.
+   */
+  createSandbox(spec: SandboxSpec): Promise<SandboxResult>;
   commit(changes: DocumentChange[]): Promise<CommitResult>;
   close?(): Promise<void>;
 }
@@ -48,6 +74,19 @@ async function retryWhileBusy<T>(fn: () => Promise<T>): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 40));
     }
   }
+}
+
+function parseThrottle(raw: string | undefined, now: number, windowMs: number) {
+  try {
+    const parsed = raw ? (JSON.parse(raw) as { start?: number; count?: number }) : {};
+    const start = Number(parsed.start);
+    const count = Number(parsed.count);
+    if (Number.isFinite(start) && Number.isFinite(count) && now - start < windowMs)
+      return { start, count };
+  } catch {
+    // fall through: start a new window
+  }
+  return { start: now, count: 0 };
 }
 
 class ConflictSignal extends Error {
@@ -127,17 +166,74 @@ class LocalSqliteBackend implements StorageBackend {
     }
   }
 
-  async loadAll() {
+  async loadKeys(keys: string[]) {
     const db = await this.open();
-    return (
-      db
-        .prepare("SELECT document_key, value, version FROM app_documents")
-        .all() as { document_key: string; value: string; version: number }[]
-    ).map((row) => ({
-      key: row.document_key,
-      value: row.value,
-      version: Number(row.version),
-    }));
+    const select = db.prepare(
+      "SELECT document_key, value, version, updated_at FROM app_documents WHERE document_key = ?",
+    );
+    const rows: StoredRow[] = [];
+    for (const key of keys) {
+      const row = select.get(key) as
+        | { document_key: string; value: string; version: number; updated_at: string }
+        | undefined;
+      if (row)
+        rows.push({
+          key: row.document_key,
+          value: row.value,
+          version: Number(row.version),
+          updatedAt: row.updated_at,
+        });
+    }
+    return rows;
+  }
+
+  async createSandbox(spec: SandboxSpec): Promise<SandboxResult> {
+    const db = await this.open();
+    const apply = db.transaction((): SandboxResult => {
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      const cutoff = new Date(now - spec.ttlMs).toISOString();
+      const expired = db
+        .prepare(
+          "SELECT document_key FROM app_documents WHERE document_key GLOB 'sbx_*/meta' AND updated_at < ? LIMIT 25",
+        )
+        .all(cutoff) as { document_key: string }[];
+      for (const row of expired) {
+        const id = row.document_key.slice(4, row.document_key.indexOf("/"));
+        if (SANDBOX_ID.test(id))
+          db.prepare("DELETE FROM app_documents WHERE document_key GLOB ?").run(
+            `sbx_${id}/*`,
+          );
+      }
+      const throttleRow = db
+        .prepare("SELECT value FROM app_documents WHERE document_key = ?")
+        .get(THROTTLE_KEY) as { value: string } | undefined;
+      const throttle = parseThrottle(throttleRow?.value, now, spec.throttleWindowMs);
+      if (throttle.count >= spec.throttleMax)
+        return { ok: false, reason: "throttled" };
+      const live = db
+        .prepare(
+          "SELECT count(*) AS n FROM app_documents WHERE document_key GLOB 'sbx_*/meta' AND updated_at >= ?",
+        )
+        .get(cutoff) as { n: number };
+      if (Number(live.n) >= spec.maxSandboxes) return { ok: false, reason: "full" };
+      db.prepare(
+        `INSERT INTO app_documents (document_key, value, updated_at, version)
+         VALUES (?, ?, ?, 1)
+         ON CONFLICT(document_key) DO UPDATE SET value = excluded.value,
+           updated_at = excluded.updated_at, version = version + 1`,
+      ).run(
+        THROTTLE_KEY,
+        JSON.stringify({ start: throttle.start, count: throttle.count + 1 }),
+        nowIso,
+      );
+      const insert = db.prepare(
+        "INSERT INTO app_documents (document_key, value, updated_at, version) VALUES (?, ?, ?, 1)",
+      );
+      for (const doc of spec.docs) insert.run(doc.key, doc.value, nowIso);
+      return { ok: true };
+    });
+    return apply.immediate();
   }
 
   async commit(changes: DocumentChange[]): Promise<CommitResult> {
@@ -251,16 +347,98 @@ class LibsqlBackend implements StorageBackend {
     }
   }
 
-  async loadAll() {
+  async loadKeys(keys: string[]) {
     const client = await this.open();
+    if (!keys.length) return [];
+    const marks = keys.map(() => "?").join(",");
     const result = await retryWhileBusy(() =>
-      client.execute("SELECT document_key, value, version FROM app_documents"),
+      client.execute({
+        sql: `SELECT document_key, value, version, updated_at FROM app_documents WHERE document_key IN (${marks})`,
+        args: keys,
+      }),
     );
     return result.rows.map((row) => ({
       key: String(row["document_key"]),
       value: String(row["value"]),
       version: Number(row["version"]),
+      updatedAt: String(row["updated_at"]),
     }));
+  }
+
+  async createSandbox(spec: SandboxSpec): Promise<SandboxResult> {
+    return retryWhileBusy(() => this.createSandboxOnce(spec));
+  }
+
+  private async createSandboxOnce(spec: SandboxSpec): Promise<SandboxResult> {
+    const client = await this.open();
+    const tx = await client.transaction("write");
+    try {
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      const cutoff = new Date(now - spec.ttlMs).toISOString();
+      const expired = await tx.execute({
+        sql: "SELECT document_key FROM app_documents WHERE document_key GLOB 'sbx_*/meta' AND updated_at < ? LIMIT 25",
+        args: [cutoff],
+      });
+      for (const row of expired.rows) {
+        const key = String(row["document_key"]);
+        const id = key.slice(4, key.indexOf("/"));
+        if (SANDBOX_ID.test(id))
+          await tx.execute({
+            sql: "DELETE FROM app_documents WHERE document_key GLOB ?",
+            args: [`sbx_${id}/*`],
+          });
+      }
+      const throttleRow = await tx.execute({
+        sql: "SELECT value FROM app_documents WHERE document_key = ?",
+        args: [THROTTLE_KEY],
+      });
+      const throttle = parseThrottle(
+        throttleRow.rows[0] ? String(throttleRow.rows[0]["value"]) : undefined,
+        now,
+        spec.throttleWindowMs,
+      );
+      let result: SandboxResult = { ok: true };
+      if (throttle.count >= spec.throttleMax) {
+        result = { ok: false, reason: "throttled" };
+      } else {
+        const live = await tx.execute({
+          sql: "SELECT count(*) AS n FROM app_documents WHERE document_key GLOB 'sbx_*/meta' AND updated_at >= ?",
+          args: [cutoff],
+        });
+        if (Number(live.rows[0]?.["n"] ?? 0) >= spec.maxSandboxes) {
+          result = { ok: false, reason: "full" };
+        } else {
+          await tx.execute({
+            sql: `INSERT INTO app_documents (document_key, value, updated_at, version)
+                  VALUES (?, ?, ?, 1)
+                  ON CONFLICT(document_key) DO UPDATE SET value = excluded.value,
+                    updated_at = excluded.updated_at, version = version + 1`,
+            args: [
+              THROTTLE_KEY,
+              JSON.stringify({ start: throttle.start, count: throttle.count + 1 }),
+              nowIso,
+            ],
+          });
+          for (const doc of spec.docs)
+            await tx.execute({
+              sql: "INSERT INTO app_documents (document_key, value, updated_at, version) VALUES (?, ?, ?, 1)",
+              args: [doc.key, doc.value, nowIso],
+            });
+        }
+      }
+      await tx.commit();
+      return result;
+    } catch (error) {
+      try {
+        await tx.rollback();
+      } catch {
+        // The original error is the useful one.
+      }
+      throw error;
+    } finally {
+      tx.close();
+    }
   }
 
   async commit(changes: DocumentChange[]): Promise<CommitResult> {

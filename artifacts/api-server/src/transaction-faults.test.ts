@@ -19,8 +19,14 @@ class FakeBackend implements StorageBackend {
       if (!this.rows.has(item.key))
         this.rows.set(item.key, { value: item.value, version: 1 });
   }
-  async loadAll(): Promise<StoredRow[]> {
-    return [...this.rows].map(([key, row]) => ({ key, ...row }));
+  async loadKeys(keys: string[]): Promise<StoredRow[]> {
+    return keys.flatMap((key) => {
+      const row = this.rows.get(key);
+      return row ? [{ key, ...row }] : [];
+    });
+  }
+  async createSandbox(): Promise<never> {
+    throw new Error("not used in these tests");
   }
   async commit(changes: DocumentChange[]): Promise<CommitResult> {
     this.commitCalls += 1;

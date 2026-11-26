@@ -1,6 +1,11 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { logger } from "./logger";
-import { persistence } from "./persistent-json";
+import {
+  persistence,
+  SANDBOX_TOKEN,
+  SandboxLimitError,
+  UnknownSandboxError,
+} from "./persistent-json";
 
 const MAX_ATTEMPTS = 6;
 
@@ -24,6 +29,19 @@ export function transactional(inner: RequestHandler): RequestHandler {
     const run = queue.then(() => handle(inner, req, res, next));
     queue = run.catch(() => undefined);
   };
+}
+
+/**
+ * Which dataset a request works on. The sandbox id comes from the session
+ * cookie and is only trusted after the sandbox's own documents confirm it
+ * exists (see Persistence.hydrate). A cookie that claims to be a sandbox token
+ * but is malformed is rejected, never treated as the owner's.
+ */
+function tenantOf(req: Request): { tenant?: string; invalid?: boolean } {
+  const token = req.cookies?.pharmacy_session;
+  if (typeof token !== "string" || !token.startsWith("sbx_")) return {};
+  const match = SANDBOX_TOKEN.exec(token);
+  return match ? { tenant: match[1] } : { invalid: true };
 }
 
 type Outcome =
@@ -90,8 +108,10 @@ async function handle(
   };
 
   try {
+    const { tenant, invalid } = tenantOf(req);
+    if (invalid) throw new UnknownSandboxError();
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      await persistence.hydrate();
+      await persistence.hydrate(tenant);
       const outcome = await runOnce(inner, req, res);
 
       if (outcome.kind === "next") {
@@ -123,6 +143,19 @@ async function handle(
     }
     return fail(409, "The data changed while saving. Please try again.");
   } catch (error) {
+    if (error instanceof UnknownSandboxError) {
+      reset();
+      res.clearCookie("pharmacy_session");
+      if (req.path === "/auth/me") return res.json({ user: null });
+      if (req.path === "/auth/logout") return res.status(204).send();
+      return res.status(401).json({
+        error:
+          req.path === "/auth/login"
+            ? "This demo session has ended. Reload the page and try again."
+            : "Authentication required",
+      });
+    }
+    if (error instanceof SandboxLimitError) return fail(413, "Demo storage limit reached.");
     logger.error({ err: error }, "Storage error");
     return fail(500, "The data could not be saved. Nothing was changed.");
   }

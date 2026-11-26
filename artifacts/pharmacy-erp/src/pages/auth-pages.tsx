@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowRight,
@@ -13,11 +13,34 @@ import {
 import { useAuth, type UserProfile } from "@/lib/auth-context";
 import { Button, Field, Feedback, Panel } from "@/components/ui-kit";
 
+const isLocalHost = ["localhost", "127.0.0.1", "[::1]"].includes(
+  window.location.hostname,
+);
+
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, startDemo } = useAuth();
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  useEffect(() => {
+    fetch("/api/demo/config")
+      .then((response) => (response.ok ? response.json() : { enabled: false }))
+      .then((data) => setDemoEnabled(Boolean(data.enabled)))
+      .catch(() => setDemoEnabled(false));
+  }, []);
+  const tryDemo = async () => {
+    setError("");
+    setSubmitting(true);
+    try {
+      await startDemo();
+      navigate("/");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not start the demo");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const [, navigate] = useLocation();
-  const [email, setEmail] = useState("admin@pharmacy.local");
-  const [password, setPassword] = useState("pharmacy123");
+  const [email, setEmail] = useState(isLocalHost ? "admin@pharmacy.local" : "");
+  const [password, setPassword] = useState(isLocalHost ? "pharmacy123" : "");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -110,6 +133,24 @@ export function LoginPage() {
               {submitting ? "Signing in..." : "Sign in"}
               <ArrowRight size={14} />
             </Button>
+            {demoEnabled && (
+              <div className="mt-4 rounded-2xl border border-[#cfe9e6] bg-[#e8f7f5] p-4 text-[#416b6d]">
+                <Button
+                  type="button"
+                  disabled={submitting}
+                  onClick={tryDemo}
+                  className="w-full"
+                >
+                  Try the demo as admin
+                </Button>
+                <p className="mt-3 text-[11px] leading-5">
+                  You get your own private copy of the demo data with full admin
+                  access. Add, edit and delete anything. Nobody else sees your
+                  changes, and the copy is deleted after 24 hours.
+                </p>
+              </div>
+            )}
+            {isLocalHost && (
             <div className="mt-6 rounded-2xl border border-[#cfe9e6] bg-[#e8f7f5] p-4 text-[#416b6d]">
               <p className="mb-2 text-xs font-bold text-[#004b4e]">
                 بيانات الدخول التجريبية
@@ -125,6 +166,7 @@ export function LoginPage() {
                 </p>
               </div>
             </div>
+            )}
           </form>
         </section>
       </div>

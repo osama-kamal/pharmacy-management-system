@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
+import demoRouter from "./routes/demo";
 import { transactional } from "./lib/transaction";
 import { logger } from "./lib/logger";
 import cookieParser from "cookie-parser";
@@ -70,6 +71,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
 
+app.use("/api", demoRouter);
 app.use("/api", transactional(router));
 
 if (process.env.NODE_ENV === "production") {
@@ -100,6 +102,8 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
+    if (error instanceof Error && error.message === "Origin is not allowed")
+      { res.status(403).json({ error: "Origin is not allowed" }); return; }
     logger.error({ err: error }, "Unhandled request error");
     res.status(500).json({ error: "Internal server error" });
   },

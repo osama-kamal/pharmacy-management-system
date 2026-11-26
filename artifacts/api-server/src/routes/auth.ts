@@ -38,9 +38,10 @@ type AppUser = {
 };
 
 const sessionDurationMs = 1000 * 60 * 60 * 12;
+const maxSessions = 50;
 const adminEmail = process.env["ADMIN_EMAIL"] ?? "admin@pharmacy.local";
 const adminPassword = process.env["ADMIN_PASSWORD"] ?? "pharmacy123";
-const profileStore = createPersistentJson<UserProfile>("profile.json", {
+const defaultProfile: UserProfile = {
   name: "Budiono Siregar",
   email: adminEmail,
   phone: "",
@@ -48,7 +49,11 @@ const profileStore = createPersistentJson<UserProfile>("profile.json", {
   role: "Pharmacy Owner",
   licenseNumber: "",
   verified: false,
-});
+};
+const profileStore = createPersistentJson<UserProfile>(
+  "profile.json",
+  defaultProfile,
+);
 const sessionStore = createPersistentJson<Record<string, SessionRecord>>(
   "sessions.json",
   {},
@@ -86,6 +91,42 @@ const usersStore = createPersistentJson<AppUser[]>("users.json", [
   },
 ]);
 
+/**
+ * Documents for a brand new demo sandbox. The sandbox has its own demo admin
+ * with a random password nobody knows (visitors get in through a session the
+ * server creates), so nothing here relates to the owner's real login.
+ */
+export function sandboxAuthDocuments(token: string) {
+  const email = "demo@pharmacy.local";
+  const users: AppUser[] = [
+    {
+      id: 1,
+      name: defaultProfile.name,
+      email,
+      passwordHash: hashPassword(randomBytes(32).toString("hex")),
+      role: "Owner",
+      status: "Active",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  const sessions: Record<string, SessionRecord> = {
+    [token]: {
+      userId: 1,
+      email,
+      role: "Owner",
+      expiresAt: Date.now() + sessionDurationMs,
+    },
+  };
+  // Built from the built-in defaults only, never from the owner's live data.
+  const profile = { ...defaultProfile, email };
+  return {
+    "users.json": JSON.stringify(users),
+    "sessions.json": JSON.stringify(sessions),
+    "profile.json": JSON.stringify(profile),
+  };
+}
+export const sessionCookieMaxAgeMs = sessionDurationMs;
+
 const publicProfile = (user: AppUser): UserProfile => ({
   ...profileStore.data,
   name: user.name,
@@ -102,6 +143,8 @@ function sessionToken(req: Request) {
 function activeSession(req: Request) {
   const token = sessionToken(req);
   if (!token) return undefined;
+  // Own properties only: a cookie such as "constructor" must never match.
+  if (!Object.hasOwn(sessionStore.data, token)) return undefined;
   const session = sessionStore.data[token];
   if (!session) return undefined;
   if (session.expiresAt <= Date.now()) {
@@ -161,16 +204,28 @@ router.post("/auth/login", (req, res) => {
   }
   loginAttempts.delete(attemptKey);
   const token = randomBytes(32).toString("hex");
+  const now = Date.now();
+  // Keep the sessions document bounded: drop expired ones and keep the newest.
+  const live = Object.entries(sessionStore.data)
+    .filter(([, session]) => session.expiresAt > now)
+    .sort((a, b) => b[1].expiresAt - a[1].expiresAt)
+    .slice(0, maxSessions - 1);
+  const sessionPrefix = req.cookies?.pharmacy_session?.match?.(
+    /^sbx_[a-f0-9]{32}\./,
+  )?.[0];
+  // A sign-in inside a demo sandbox keeps the sandbox prefix so the request
+  // keeps working on that sandbox's own data.
+  const sessionId = (sessionPrefix ?? "") + token;
   sessionStore.save({
-    ...sessionStore.data,
-    [token]: {
+    ...Object.fromEntries(live),
+    [sessionId]: {
       userId: user.id,
       email,
       role: user.role,
-      expiresAt: Date.now() + sessionDurationMs,
+      expiresAt: now + sessionDurationMs,
     },
   });
-  res.cookie("pharmacy_session", token, {
+  res.cookie("pharmacy_session", sessionId, {
     httpOnly: true,
     sameSite: "lax",
     secure: req.secure,
@@ -199,7 +254,7 @@ router.get("/auth/me", (req, res) => {
 
 router.post("/auth/logout", (req, res) => {
   const token = sessionToken(req);
-  if (token && sessionStore.data[token]) {
+  if (token && Object.hasOwn(sessionStore.data, token)) {
     const next = { ...sessionStore.data };
     delete next[token];
     sessionStore.save(next);
